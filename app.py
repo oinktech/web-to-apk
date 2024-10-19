@@ -1,73 +1,58 @@
+from flask import Flask, request, render_template, send_from_directory, jsonify
 import os
-import zipfile
 import subprocess
-from flask import Flask, request, jsonify, send_file
-from werkzeug.utils import secure_filename
+import zipfile
 
 app = Flask(__name__)
 UPLOAD_FOLDER = 'uploads'
-os.makedirs(UPLOAD_FOLDER, exist_ok=True)
+app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
+
+if not os.path.exists(UPLOAD_FOLDER):
+    os.makedirs(UPLOAD_FOLDER)
+
+@app.route('/')
+def index():
+    return render_template('index.html')
 
 @app.route('/upload', methods=['POST'])
-def upload_files():
-    app_name = request.form.get('appName')
-    app_version = request.form.get('appVersion')
-    app_icon = request.files.get('appIcon')
-    web_files = request.files.get('webFiles')
+def upload_file():
+    app_name = request.form['app_name']
+    icon_file = request.files['icon']
+    web_files = request.files.getlist('web_files')
 
-    # Validate input
-    if not app_name or not app_version or not app_icon or not web_files:
-        return jsonify({"error": "All fields are required."}), 400
+    if not app_name or not icon_file or not web_files:
+        return jsonify({'error': 'Please provide app name, icon, and web files.'}), 400
 
-    # Save files
-    icon_path = os.path.join(UPLOAD_FOLDER, secure_filename(app_icon.filename))
-    app_icon.save(icon_path)
+    icon_path = os.path.join(app.config['UPLOAD_FOLDER'], icon_file.filename)
+    icon_file.save(icon_path)
 
-    web_files_path = os.path.join(UPLOAD_FOLDER, secure_filename(web_files.filename))
-    web_files.save(web_files_path)
+    web_file_paths = []
+    for web_file in web_files:
+        web_file_path = os.path.join(app.config['UPLOAD_FOLDER'], web_file.filename)
+        web_file.save(web_file_path)
+        web_file_paths.append(web_file_path)
 
-    # Unzip web files
-    web_files_folder = os.path.join(UPLOAD_FOLDER, 'web_files')
-    os.makedirs(web_files_folder, exist_ok=True)
-    with zipfile.ZipFile(web_files_path, 'r') as zip_ref:
-        zip_ref.extractall(web_files_folder)
+    build_script = f"""#!/bin/bash
+    cd {UPLOAD_FOLDER}
+    cordova create {app_name}
+    cd {app_name}
+    cordova platform add android
+    mkdir -p www
+    cp -r ../* www/
+    cordova build android --release
+    """
+    
+    with open('build_apk.sh', 'w') as f:
+        f.write(build_script)
 
-    # Generate build_apk.sh script
-    apk_script_path = os.path.join(UPLOAD_FOLDER, 'build_apk.sh')
-    with open(apk_script_path, 'w') as f:
-        f.write(f'''#!/bin/bash
-APP_NAME="{app_name}"
-APP_VERSION="{app_version}"
-ICON_PATH="{icon_path}"
-WEB_FILES_PATH="{web_files_folder}"
-OUTPUT_APK="{UPLOAD_FOLDER}/{app_name}.apk"
+    subprocess.run(['bash', 'build_apk.sh'], check=True)
 
-# Use Cordova to generate APK
-cordova create "$APP_NAME" com.example."$APP_NAME" "$APP_NAME"
-cd "$APP_NAME"
-
-# Replace icon and web content
-cp "$ICON_PATH" ./res/icon.png
-cp -r "$WEB_FILES_PATH"/* ./www/
-
-# Configure APK info
-cordova platform add android
-cordova build android --release
-
-# Move the generated APK to the target path
-cp ./platforms/android/app/build/outputs/apk/release/app-release.apk "$OUTPUT_APK"
-''')
-
-    # Grant execution permission
-    os.chmod(apk_script_path, 0o755)
-
-    # Run the APK build script
-    result = subprocess.run([apk_script_path], capture_output=True, text=True)
-
-    if result.returncode == 0:
-        return send_file(f"{UPLOAD_FOLDER}/{app_name}.apk", as_attachment=True)
+    apk_filename = f"{app_name}/platforms/android/app/build/outputs/apk/release/app-release-unsigned.apk"
+    
+    if os.path.exists(apk_filename):
+        return send_from_directory(app.config['UPLOAD_FOLDER'], apk_filename, as_attachment=True)
     else:
-        return jsonify({"error": f"APK build failed: {result.stderr}"}), 500
+        return jsonify({'error': 'Failed to build APK. Please check the logs.'}), 500
 
 if __name__ == '__main__':
-    app.run(debug=True, host='0.0.0.0', port=10000)
+    app.run(host='0.0.0.0', port=10000,debug=True)
