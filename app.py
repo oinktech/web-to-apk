@@ -1,7 +1,6 @@
 from flask import Flask, request, render_template, send_from_directory, jsonify
 import os
 import subprocess
-import zipfile
 
 app = Flask(__name__)
 UPLOAD_FOLDER = 'uploads'
@@ -32,6 +31,7 @@ def upload_file():
         web_file.save(web_file_path)
         web_file_paths.append(web_file_path)
 
+    # 生成 build_apk.sh 脚本
     build_script = f"""#!/bin/bash
     cd {UPLOAD_FOLDER}
     cordova create {app_name}
@@ -39,18 +39,26 @@ def upload_file():
     cordova platform add android
     mkdir -p www
     cp -r ../* www/
+    cp -r ../uploads www/uploads  # 确保uploads目录不会被复制到自身
     cordova build android --release
     """
-    
-    with open('build_apk.sh', 'w') as f:
+
+    with open(os.path.join(UPLOAD_FOLDER, 'build_apk.sh'), 'w') as f:
         f.write(build_script)
+    
+    # 修改权限
+    os.chmod(os.path.join(UPLOAD_FOLDER, 'build_apk.sh'), 0o755)
 
-    subprocess.run(['bash', 'build_apk.sh'], check=True)
+    # 运行脚本
+    try:
+        subprocess.run(['bash', 'build_apk.sh'], check=True, cwd=UPLOAD_FOLDER)
+    except subprocess.CalledProcessError as e:
+        return jsonify({'error': f'Build failed: {e}'})
 
-    apk_filename = f"{app_name}/platforms/android/app/build/outputs/apk/release/app-release-unsigned.apk"
+    apk_filename = os.path.join(UPLOAD_FOLDER, app_name, "platforms", "android", "app", "build", "outputs", "apk", "release", "app-release-unsigned.apk")
     
     if os.path.exists(apk_filename):
-        return send_from_directory(app.config['UPLOAD_FOLDER'], apk_filename, as_attachment=True)
+        return send_from_directory(UPLOAD_FOLDER, apk_filename, as_attachment=True)
     else:
         return jsonify({'error': 'Failed to build APK. Please check the logs.'}), 500
 
