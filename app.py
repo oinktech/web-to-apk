@@ -22,43 +22,48 @@ def upload_file():
     if not app_name or not icon_file or not web_files:
         return jsonify({'error': 'Please provide app name, icon, and web files.'}), 400
 
-    icon_path = os.path.join(app.config['UPLOAD_FOLDER'], icon_file.filename)
+    # 创建应用名称的目录
+    app_upload_folder = os.path.join(app.config['UPLOAD_FOLDER'], app_name)
+    if not os.path.exists(app_upload_folder):
+        os.makedirs(app_upload_folder)
+
+    icon_path = os.path.join(app_upload_folder, icon_file.filename)
     icon_file.save(icon_path)
 
     web_file_paths = []
     for web_file in web_files:
-        web_file_path = os.path.join(app.config['UPLOAD_FOLDER'], web_file.filename)
+        web_file_path = os.path.join(app_upload_folder, web_file.filename)
         web_file.save(web_file_path)
         web_file_paths.append(web_file_path)
 
     # 生成 build_apk.sh 脚本
     build_script = f"""#!/bin/bash
-    cd {UPLOAD_FOLDER}
+    cd {app_upload_folder}
     cordova create {app_name}
     cd {app_name}
     cordova platform add android
     mkdir -p www
     cp -r ../* www/
-    cp -r ../uploads www/uploads  # 确保uploads目录不会被复制到自身
+    cp -r ../uploads/* www/uploads/  # 确保uploads目录不会被复制到自身
     cordova build android --release
     """
 
-    with open(os.path.join(UPLOAD_FOLDER, 'build_apk.sh'), 'w') as f:
+    with open(os.path.join(app_upload_folder, 'build_apk.sh'), 'w') as f:
         f.write(build_script)
     
     # 修改权限
-    os.chmod(os.path.join(UPLOAD_FOLDER, 'build_apk.sh'), 0o755)
+    os.chmod(os.path.join(app_upload_folder, 'build_apk.sh'), 0o755)
 
     # 运行脚本
     try:
-        subprocess.run(['bash', 'build_apk.sh'], check=True, cwd=UPLOAD_FOLDER)
+        subprocess.run(['bash', 'build_apk.sh'], check=True, cwd=app_upload_folder)
     except subprocess.CalledProcessError as e:
         return jsonify({'error': f'Build failed: {e}'})
 
-    apk_filename = os.path.join(UPLOAD_FOLDER, app_name, "platforms", "android", "app", "build", "outputs", "apk", "release", "app-release-unsigned.apk")
+    apk_filename = os.path.join(app_upload_folder, app_name, "platforms", "android", "app", "build", "outputs", "apk", "release", "app-release-unsigned.apk")
     
     if os.path.exists(apk_filename):
-        return send_from_directory(UPLOAD_FOLDER, apk_filename, as_attachment=True)
+        return send_from_directory(app_upload_folder, apk_filename, as_attachment=True)
     else:
         return jsonify({'error': 'Failed to build APK. Please check the logs.'}), 500
 
