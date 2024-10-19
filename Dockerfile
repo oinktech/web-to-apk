@@ -1,4 +1,4 @@
-# 使用 Alpine 作为基础镜像
+# 使用更小的 Alpine 镜像
 FROM openjdk:11-jre-slim
 
 # 设置环境变量
@@ -12,20 +12,19 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     npm \
     python3 \
     python3-pip \
-    && rm -rf /var/lib/apt/lists/* \
-    && rm -rf /var/cache/apt/archives/*
+    && rm -rf /var/lib/apt/lists/*
 
 # 安装 Cordova
 RUN npm install -g cordova
 
-# 安装 Android SDK 工具（精简安装）
+# 安装 Android SDK 工具
 RUN mkdir -p ${ANDROID_HOME}/cmdline-tools && \
     curl -o /tmp/sdk-tools.zip https://dl.google.com/android/repository/commandlinetools-linux-7583922_latest.zip && \
     unzip /tmp/sdk-tools.zip -d ${ANDROID_HOME}/cmdline-tools && \
     rm /tmp/sdk-tools.zip && \
     mv ${ANDROID_HOME}/cmdline-tools/cmdline-tools ${ANDROID_HOME}/cmdline-tools/latest && \
     yes | sdkmanager --licenses && \
-    sdkmanager "platform-tools" "build-tools;30.0.3" && \
+    sdkmanager "platform-tools" "build-tools;30.0.3" "platforms;android-30" && \
     rm -rf ${ANDROID_HOME}/cmdline-tools/latest/bin/sdkmanager
 
 # 清理临时文件
