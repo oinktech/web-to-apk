@@ -14,6 +14,10 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     python3-pip \
     && rm -rf /var/lib/apt/lists/*
 
+# 安装更高版本的 Node.js
+RUN curl -fsSL https://deb.nodesource.com/setup_16.x | bash - && \
+    apt-get install -y nodejs
+
 # 安装 Cordova
 RUN npm install -g cordova
 
@@ -27,6 +31,9 @@ RUN mkdir -p ${ANDROID_HOME}/cmdline-tools && \
     sdkmanager "platform-tools" "build-tools;30.0.3" "platforms;android-30" && \
     rm -rf ${ANDROID_HOME}/cmdline-tools/latest/bin/sdkmanager
 
+# 清理临时文件
+RUN rm -rf /tmp/*
+
 # 创建工作目录
 WORKDIR /usr/src/app
 
@@ -35,6 +42,9 @@ RUN mkdir -p uploads
 
 # 复制当前目录的内容到容器
 COPY . .
+
+# 生成 build_apk.sh 脚本
+RUN echo '#!/bin/bash\ncd uploads/test\ncordova build android' > build_apk.sh && chmod +x build_apk.sh
 
 # 安装 Python 依赖项
 RUN pip3 install --no-cache-dir -r requirements.txt
