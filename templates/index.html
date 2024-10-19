@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Web to APK Converter</title>
+    <link rel="stylesheet" href="static/styles.css">
+    <script src="static/script.js" defer></script>
+</head>
+<body>
+    <div class="container">
+        <h1>Web to APK Converter</h1>
+        <form id="uploadForm" enctype="multipart/form-data">
+            <div class="form-group">
+                <label for="appName">Application Name:</label>
+                <input type="text" id="appName" name="appName" required>
+            </div>
+
+            <div class="form-group">
+                <label for="appVersion">Application Version:</label>
+                <input type="text" id="appVersion" name="appVersion" required>
+            </div>
+
+            <div class="form-group">
+                <label for="appIcon">Application Icon (PNG):</label>
+                <input type="file" id="appIcon" name="appIcon" accept="image/png" required>
+            </div>
+
+            <div class="form-group">
+                <label for="webFiles">Upload Web Files (ZIP):</label>
+                <input type="file" id="webFiles" name="webFiles" accept=".zip" required>
+            </div>
+
+            <div class="form-group">
+                <button type="submit" id="convertButton">Convert to APK</button>
+            </div>
+        </form>
+
+        <div id="progress" style="display:none;">
+            <p>Processing...</p>
+            <div id="progressBar">
+                <div style="width:0%;"></div>
+            </div>
+        </div>
+
+        <div id="result"></div>
+    </div>
+</body>
+</html>
