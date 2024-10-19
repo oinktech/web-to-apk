@@ -1,36 +1,35 @@
-# 使用更小的 Alpine 镜像
-FROM alpine:latest
+# 使用 Alpine 作为基础镜像
+FROM openjdk:11-jre-slim
 
 # 设置环境变量
 ENV ANDROID_HOME /opt/android-sdk
-ENV PATH ${PATH}:${ANDROID_HOME}/cmdline-tools/tools/bin:${ANDROID_HOME}/platform-tools
+ENV PATH ${PATH}:${ANDROID_HOME}/cmdline-tools/latest/bin:${ANDROID_HOME}/platform-tools
 
-# 安装基础工具和依赖项 (bash, curl, openjdk, node.js)
-RUN apk update && apk add --no-cache \
-    bash \
+# 安装基础工具和依赖项
+RUN apt-get update && apt-get install -y --no-install-recommends \
     curl \
-    openjdk11 \
-    nodejs \
-    npm \
     unzip \
-    git \
+    npm \
     python3 \
-    py3-pip \
-    build-base
+    python3-pip \
+    && rm -rf /var/lib/apt/lists/* \
+    && rm -rf /var/cache/apt/archives/*
 
-# 安装 cordova 和其他工具
+# 安装 Cordova
 RUN npm install -g cordova
 
 # 安装 Android SDK 工具（精简安装）
-RUN mkdir -p /opt/android-sdk/cmdline-tools && \
+RUN mkdir -p ${ANDROID_HOME}/cmdline-tools && \
     curl -o /tmp/sdk-tools.zip https://dl.google.com/android/repository/commandlinetools-linux-7583922_latest.zip && \
-    unzip /tmp/sdk-tools.zip -d /opt/android-sdk/cmdline-tools && \
+    unzip /tmp/sdk-tools.zip -d ${ANDROID_HOME}/cmdline-tools && \
     rm /tmp/sdk-tools.zip && \
+    mv ${ANDROID_HOME}/cmdline-tools/cmdline-tools ${ANDROID_HOME}/cmdline-tools/latest && \
     yes | sdkmanager --licenses && \
-    sdkmanager "platform-tools" "build-tools;30.0.3" "platforms;android-30"
+    sdkmanager "platform-tools" "build-tools;30.0.3" && \
+    rm -rf ${ANDROID_HOME}/cmdline-tools/latest/bin/sdkmanager
 
 # 清理临时文件
-RUN rm -rf /var/cache/apk/* /tmp/*
+RUN rm -rf /tmp/*
 
 # 创建工作目录
 WORKDIR /usr/src/app
@@ -42,7 +41,7 @@ RUN mkdir -p uploads
 COPY . .
 
 # 安装 Python 依赖项
-RUN pip3 install -r requirements.txt
+RUN pip3 install --no-cache-dir -r requirements.txt
 
 # 暴露 Flask 默认端口
 EXPOSE 10000
