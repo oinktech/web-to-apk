@@ -1,11 +1,11 @@
-# Use smaller Alpine image
+# 使用更小的 Alpine 镜像
 FROM alpine:latest
 
-# Set environment variables
+# 设置环境变量
 ENV ANDROID_HOME /opt/android-sdk
 ENV PATH ${PATH}:${ANDROID_HOME}/cmdline-tools/tools/bin:${ANDROID_HOME}/platform-tools
 
-# Install base tools and dependencies (bash, curl, openjdk, node.js)
+# 安装基础工具和依赖项 (bash, curl, openjdk, node.js)
 RUN apk update && apk add --no-cache \
     bash \
     curl \
@@ -18,10 +18,10 @@ RUN apk update && apk add --no-cache \
     py3-pip \
     build-base
 
-# Install cordova and other tools
+# 安装 cordova 和其他工具
 RUN npm install -g cordova
 
-# Install Android SDK tools (minimal installation)
+# 安装 Android SDK 工具（精简安装）
 RUN mkdir -p /opt/android-sdk/cmdline-tools && \
     curl -o /tmp/sdk-tools.zip https://dl.google.com/android/repository/commandlinetools-linux-7583922_latest.zip && \
     unzip /tmp/sdk-tools.zip -d /opt/android-sdk/cmdline-tools && \
@@ -29,20 +29,23 @@ RUN mkdir -p /opt/android-sdk/cmdline-tools && \
     yes | sdkmanager --licenses && \
     sdkmanager "platform-tools" "build-tools;30.0.3" "platforms;android-30"
 
-# Clean up temporary files
+# 清理临时文件
 RUN rm -rf /var/cache/apk/* /tmp/*
 
-# Create working directory
+# 创建工作目录
 WORKDIR /usr/src/app
 
-# Copy current directory contents to container
+# 创建 uploads 目录
+RUN mkdir -p uploads
+
+# 复制当前目录的内容到容器
 COPY . .
 
-# Install Python dependencies
+# 安装 Python 依赖项
 RUN pip3 install -r requirements.txt
 
-# Expose Flask default port
+# 暴露 Flask 默认端口
 EXPOSE 10000
 
-# Start Flask server
+# 启动 Flask 服务器
 CMD ["python3", "app.py"]
