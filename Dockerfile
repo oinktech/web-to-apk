@@ -27,9 +27,6 @@ RUN mkdir -p ${ANDROID_HOME}/cmdline-tools && \
     sdkmanager "platform-tools" "build-tools;30.0.3" "platforms;android-30" && \
     rm -rf ${ANDROID_HOME}/cmdline-tools/latest/bin/sdkmanager
 
-# 清理临时文件
-RUN rm -rf /tmp/*
-
 # 创建工作目录
 WORKDIR /usr/src/app
 
