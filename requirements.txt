@@ -1,4 +1,4 @@
-Flask==2.0.1
-Werkzeug==2.0.1
-zipfile==0.12
-subprocess==0.2.1
+Flas
+Werkzeug
+zipfile
+subprocess
